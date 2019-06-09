@@ -3,6 +3,10 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const Users = require('../models/user-model');
 
+router.get('/', (req, res) => {
+  res.send('hello');
+});
+
 router.post('/register', async (req, res) => {
   try {
     const user = req.body;
@@ -22,6 +26,7 @@ router.post('/login', async (req, res) => {
       const user = await Users.findUser({ username });
       const isValidPass = await bcrypt.compareSync(password, user.password);
       if (username && isValidPass) {
+        req.session.user = user;
         res.status(200).json({ message: `Welcome ${username}` });
       } else {
         res.status(401).json({ message: 'Invalied username or password' });
@@ -34,21 +39,16 @@ router.post('/login', async (req, res) => {
 
 // middleware
 async function authorize(req, res, next) {
-    try {
-      const { username, password } = req.headers;
-      if (username && password) {
-        const user = await Users.findUser({ username });
-        const isValid = await bcrypt.compareSync(password, user.password);
-        if (username && isValid) {
-          next();
-        }
-      } else {
-        res.status(401).json({ message: 'You shall not pass!' });
-      }
-    } catch (err) {
-      res.status(500).json({ message: 'Please provide valid credentials' });
+  try {
+    if (req.session && req.session.user) {
+      next();
+    } else {
+      res.status(401).json({ message: 'You shall not pass!' });
     }
+  } catch (err) {
+    res.status(500).json({ message: 'Please provide valid credentials' });
   }
+}
 
 router.get('/users', authorize, async (req, res) => {
   try {
